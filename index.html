@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Unbound House Café — By Dox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #353a2c;
+            --bg-card: #3e4434;
+            --cream: #f0e2c8;
+            --cream-light: #f5edd9;
+            --cream-dim: #b8ad97;
+            --gold: #c9b896;
+            --accent: #a09270;
+        }
+
+        body {
+            font-family: 'Playfair Display', 'Georgia', serif;
+            background-color: var(--bg-dark);
+            color: var(--cream);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(160, 146, 112, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(160, 146, 112, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 440px;
+            padding: 40px 24px 60px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid rgba(240, 226, 200, 0.12);
+        }
+
+        .header-the {
+            font-size: 11px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--cream-dim);
+            margin-bottom: 6px;
+            font-weight: 400;
+        }
+
+        .header-title {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1.1;
+            margin-bottom: 12px;
+            color: var(--cream-light);
+        }
+
+        .header-cafe {
+            font-size: 13px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: var(--cream-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .header-cafe::before,
+        .header-cafe::after {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: var(--cream-dim);
+            opacity: 0.5;
+        }
+
+        .header-by {
+            font-size: 16px;
+            font-style: italic;
+            font-weight: 400;
+            color: var(--gold);
+        }
+
+        .location {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 16px;
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: var(--cream-dim);
+            text-transform: uppercase;
+        }
+
+        .location svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--cream-dim);
+        }
+
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 40px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 24px;
+            background: rgba(240, 226, 200, 0.04);
+            border: 1px solid rgba(240, 226, 200, 0.1);
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--cream);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .link-item:hover {
+            background: rgba(240, 226, 200, 0.09);
+            border-color: rgba(240, 226, 200, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .link-item:active {
+            transform: translateY(0);
+        }
+
+        .link-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        .link-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--gold);
+        }
+
+        .link-text {
+            flex: 1;
+        }
+
+        .link-title {
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .link-subtitle {
+            font-size: 11px;
+            color: var(--cream-dim);
+            letter-spacing: 1px;
+            font-style: italic;
+        }
+
+        .link-arrow {
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .link-item:hover .link-arrow {
+            opacity: 0.6;
+        }
+
+        .link-arrow svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--cream);
+        }
+
+        .link-item.featured {
+            background: rgba(201, 184, 150, 0.1);
+            border-color: rgba(201, 184, 150, 0.25);
+        }
+
+        .link-item.featured:hover {
+            background: rgba(201, 184, 150, 0.15);
+            border-color: rgba(201, 184, 150, 0.35);
+        }
+
+        .hours-section {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 28px 24px;
+            background: rgba(240, 226, 200, 0.03);
+            border: 1px solid rgba(240, 226, 200, 0.08);
+            border-radius: 4px;
+        }
+
+        .hours-title {
+            font-size: 11px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: var(--cream-dim);
+            margin-bottom: 16px;
+        }
+
+        .hours-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .hours-day {
+            color: var(--cream-dim);
+            font-style: italic;
+        }
+
+        .hours-time {
+            color: var(--cream);
+            letter-spacing: 1px;
+        }
+
+        .hours-divider {
+            width: 100%;
+            height: 1px;
+            background: rgba(240, 226, 200, 0.06);
+            margin: 8px 0;
+        }
+
+        .footer {
+            text-align: center;
+            padding-top: 24px;
+            border-top: 1px solid rgba(240, 226, 200, 0.08);
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: var(--cream-dim);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        .footer-collab {
+            margin-top: 8px;
+            font-size: 13px;
+            font-style: italic;
+            color: var(--gold);
+            opacity: 0.5;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header { animation: fadeUp 0.6s ease both; }
+        .link-item:nth-child(1) { animation: fadeUp 0.6s ease 0.1s both; }
+        .link-item:nth-child(2) { animation: fadeUp 0.6s ease 0.15s both; }
+        .link-item:nth-child(3) { animation: fadeUp 0.6s ease 0.2s both; }
+        .link-item:nth-child(4) { animation: fadeUp 0.6s ease 0.25s both; }
+        .link-item:nth-child(5) { animation: fadeUp 0.6s ease 0.3s both; }
+        .link-item:nth-child(6) { animation: fadeUp 0.6s ease 0.35s both; }
+        .hours-section { animation: fadeUp 0.6s ease 0.4s both; }
+        .footer { animation: fadeUp 0.6s ease 0.5s both; }
+    </style>
+</head>
+<body>
+    <div class="noise-overlay"></div>
+    <div class="container">
+        <header class="header">
+            <div class="header-the">The</div>
+            <h1 class="header-title">Unbound House</h1>
+            <div class="header-cafe">Café</div>
+            <div class="header-by">By Dox</div>
+            <div class="location">
+                <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                Cabo Frio, RJ
+            </div>
+        </header>
+
+        <div class="links">
+            <a href="/menu" class="link-item featured">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M8.1 13.34l2.83-2.83L3.91 3.5a4.008 4.008 0 000 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">Our Menu</div>
+                    <div class="link-subtitle">Specialty coffees & experiences</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+
+            <a href="#" class="link-item">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">Make a Reservation</div>
+                    <div class="link-subtitle">Book your table</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+
+            <a href="#" class="link-item">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492l4.624-1.467A11.932 11.932 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75c-2.17 0-4.207-.69-5.87-1.857l-.42-.282-2.744.87.912-2.664-.309-.462A9.709 9.709 0 012.25 12 9.75 9.75 0 0112 2.25 9.75 9.75 0 0121.75 12 9.75 9.75 0 0112 21.75z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">WhatsApp</div>
+                    <div class="link-subtitle">Message us directly</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+
+            <a href="#" class="link-item">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">Order Delivery</div>
+                    <div class="link-subtitle">Premium coffee at your door</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+
+            <a href="/our-story" class="link-item">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">Our Story</div>
+                    <div class="link-subtitle">Discover The Unbound House</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+
+            <a href="#" class="link-item">
+                <div class="link-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                </div>
+                <div class="link-text">
+                    <div class="link-title">Get Directions</div>
+                    <div class="link-subtitle">View on Google Maps</div>
+                </div>
+                <div class="link-arrow">
+                    <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                </div>
+            </a>
+        </div>
+
+        <div class="hours-section">
+            <div class="hours-title">Hours</div>
+            <div class="hours-row">
+                <span class="hours-day">Monday to Friday</span>
+                <span class="hours-time">8 AM — 8 PM</span>
+            </div>
+            <div class="hours-divider"></div>
+            <div class="hours-row">
+                <span class="hours-day">Saturday</span>
+                <span class="hours-time">9 AM — 9 PM</span>
+            </div>
+            <div class="hours-divider"></div>
+            <div class="hours-row">
+                <span class="hours-day">Sunday</span>
+                <span class="hours-time">9 AM — 6 PM</span>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="footer-text">Cabo Frio — Rio de Janeiro</div>
+            <div class="footer-collab">The Unbound House Café & Dox</div>
+        </footer>
+    </div>
+</body>
+</html>
