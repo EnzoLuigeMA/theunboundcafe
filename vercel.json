@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/our-story", "destination": "/story.html" }
-  ]
-}
