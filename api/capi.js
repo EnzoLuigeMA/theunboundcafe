@@ -45,6 +45,7 @@ module.exports = async function handler(req, res) {
       event_name = 'PageView',
       event_id,
       event_source_url,
+      custom_data,
       fbp,
       fbc,
       email,
@@ -66,18 +67,19 @@ module.exports = async function handler(req, res) {
     if (email) user_data.em = [sha256(email)];
     if (phone) user_data.ph = [sha256(String(phone).replace(/\D/g, ''))];
 
-    const payload = {
-      data: [
-        {
-          event_name,
-          event_time: Math.floor(Date.now() / 1000),
-          action_source: 'website',
-          event_source_url,
-          event_id,
-          user_data,
-        },
-      ],
+    const event = {
+      event_name,
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: 'website',
+      event_source_url,
+      event_id,
+      user_data,
     };
+    if (custom_data && Object.keys(custom_data).length) {
+      event.custom_data = custom_data;
+    }
+
+    const payload = { data: [event] };
     if (TEST_EVENT_CODE) payload.test_event_code = TEST_EVENT_CODE;
 
     const url = `https://graph.facebook.com/${API_VERSION}/${PIXEL_ID}/events?access_token=${ACCESS_TOKEN}`;

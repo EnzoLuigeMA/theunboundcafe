@@ -24,9 +24,10 @@
   // buttons/links can report conversions (e.g. Lead, Contact).
   function track(eventName, customData) {
     var eventId = uuid();
+    customData = customData || {};
 
     if (window.fbq) {
-      fbq('track', eventName, customData || {}, { eventID: eventId });
+      fbq('track', eventName, customData, { eventID: eventId });
     }
 
     try {
@@ -38,6 +39,7 @@
           event_name: eventName,
           event_id: eventId,
           event_source_url: window.location.href,
+          custom_data: customData,
           fbp: getCookie('_fbp'),
           fbc: getCookie('_fbc'),
         }),
@@ -47,6 +49,29 @@
 
   window.unboundTrack = track;
 
+  // Conversion events declared on elements via data-track-event.
+  // Optional data-track-content sets custom_data.content_name.
+  document.addEventListener(
+    'click',
+    function (e) {
+      var el =
+        e.target && e.target.closest ? e.target.closest('[data-track-event]') : null;
+      if (!el) return;
+      var eventName = el.getAttribute('data-track-event');
+      if (!eventName) return;
+      var customData = {};
+      var contentName = el.getAttribute('data-track-content');
+      if (contentName) customData.content_name = contentName;
+      track(eventName, customData);
+    },
+    true
+  );
+
   // Fire PageView on every page load.
   track('PageView');
+
+  // The menu is the key content page — also report ViewContent.
+  if (/\/menu(\.html)?$/.test(window.location.pathname)) {
+    track('ViewContent', { content_name: 'Menu', content_category: 'Menu' });
+  }
 })();
