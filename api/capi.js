@@ -6,14 +6,16 @@
 // exposed to the client. Events are deduplicated against the browser Pixel
 // through a shared event_id.
 //
-// Required environment variables (set in Vercel → Project → Settings → Environment Variables):
-//   META_PIXEL_ID       e.g. 1014649747721914
-//   META_CAPI_TOKEN     the Conversions API access token (secret)
+// Environment variables (set in Vercel → Project → Settings → Environment Variables):
+//   META_CAPI_TOKEN     REQUIRED — the Conversions API access token (secret)
+//   META_PIXEL_ID       optional — defaults to the public Pixel ID below
 //   META_TEST_EVENT_CODE  optional — only while testing in Events Manager
 
 const crypto = require('crypto');
 
-const PIXEL_ID = process.env.META_PIXEL_ID;
+// The Pixel ID is public (it also appears in the client-side Pixel), so it is
+// safe to default it here. Only the access token is a secret.
+const PIXEL_ID = process.env.META_PIXEL_ID || '1014649747721914';
 const ACCESS_TOKEN = process.env.META_CAPI_TOKEN;
 const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE;
 const API_VERSION = 'v21.0';
@@ -31,8 +33,8 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!PIXEL_ID || !ACCESS_TOKEN) {
-    // Misconfiguration — never leak which value is missing.
+  if (!ACCESS_TOKEN) {
+    // Token not configured — never leak which value is missing.
     return res.status(500).json({ error: 'Server not configured' });
   }
 
