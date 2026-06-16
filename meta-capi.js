@@ -10,6 +10,16 @@
     return match ? match.pop() : undefined;
   }
 
+  function setCookie(name, value, days) {
+    document.cookie =
+      name + '=' + value + ';path=/;max-age=' + days * 24 * 60 * 60 + ';SameSite=Lax';
+  }
+
+  function getParam(name) {
+    var m = window.location.search.match(new RegExp('[?&]' + name + '=([^&]+)'));
+    return m ? decodeURIComponent(m[1]) : undefined;
+  }
+
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -17,6 +27,26 @@
       var v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
+  }
+
+  // The Meta Pixel sets _fbp / _fbc asynchronously (fbevents.js loads async),
+  // so the first events would otherwise be sent to CAPI without them. We create
+  // the cookies synchronously here, BEFORE any event fires. fbevents reuses an
+  // existing _fbp, so the browser Pixel and server CAPI share identical
+  // parameters from the very first event (format: fb.<subdomain>.<ts>.<id>).
+  function ensureFbCookies() {
+    if (!getCookie('_fbp')) {
+      var rand =
+        '' +
+        Math.floor(Math.random() * 1e10) +
+        Math.floor(Math.random() * 1e10);
+      setCookie('_fbp', 'fb.1.' + Date.now() + '.' + rand, 90);
+    }
+    // _fbc is derived from the fbclid click id when present.
+    var fbclid = getParam('fbclid');
+    if (fbclid && !getCookie('_fbc')) {
+      setCookie('_fbc', 'fb.1.' + Date.now() + '.' + fbclid, 90);
+    }
   }
 
   // Fires an event on both the browser Pixel and the server-side CAPI,
@@ -48,6 +78,9 @@
   }
 
   window.unboundTrack = track;
+
+  // Guarantee matching parameters exist before the first event is sent.
+  ensureFbCookies();
 
   // Conversion events declared on elements via data-track-event.
   // Optional data-track-content sets custom_data.content_name.
