@@ -554,6 +554,30 @@
         handle.castShadow = true;
         model.add(handle);
 
+        // Café logo on the cup — placeholder wordmark now; auto-swaps to /assets/logo.png when present.
+        let logoCustom = false;
+        const logoMat = new THREE.MeshStandardMaterial({ map: makeLogoTexture(), transparent: true, alphaTest: 0.3, roughness: 0.55, metalness: 0.0 });
+        const logo = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.44), logoMat);
+        logo.position.set(0, 0.05 + 0.46, 0.585);
+        model.add(logo);
+        fetch('/assets/logo.png', { method: 'HEAD' }).then((r) => {
+          if (!r.ok) return;
+          new THREE.TextureLoader().load('/assets/logo.png', (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+            logoCustom = true; logoMat.map = tex; logoMat.needsUpdate = true;
+          });
+        }).catch(() => {});
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => { if (!logoCustom) { logoMat.map = makeLogoTexture(); logoMat.needsUpdate = true; } });
+        }
+
+        // Pour stream — visible while the cup fills.
+        const pourMat = new THREE.MeshStandardMaterial({ color: 0x2a1708, roughness: 0.1, metalness: 0.0, transparent: true, opacity: 0.0 });
+        const pour = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.04, 1, 16), pourMat);
+        pour.position.set(0, 0.05 + 1.0, 0);
+        pour.visible = false;
+        model.add(pour);
+
         // Center the whole model around the origin and add to a spin pivot.
         model.position.y = -0.52;
         const pivot = new THREE.Group();
@@ -620,25 +644,49 @@
           ctx.fillStyle = g; ctx.fillRect(0, 0, 16, 256);
           const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
         }
+        function makeLogoTexture() {
+          const w = 512, h = 320; const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+          const ctx = cv.getContext('2d');
+          ctx.clearRect(0, 0, w, h);
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#f0e2c8';
+          ctx.font = '600 46px "Playfair Display", Georgia, serif';
+          ctx.fillText('THE', w / 2, 62);
+          ctx.font = '700 92px "Playfair Display", Georgia, serif';
+          ctx.fillText('UNBOUND', w / 2, 148);
+          ctx.font = '600 38px "Playfair Display", Georgia, serif';
+          ctx.fillText('H O U S E   C A FÉ', w / 2, 222);
+          ctx.strokeStyle = '#c9b896'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(w / 2 - 130, 262); ctx.lineTo(w / 2 + 130, 262); ctx.stroke();
+          const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; return tex;
+        }
 
-        /* ----- Post-processing (the "premium glow") on capable devices ----- */
+        /* ----- Post-processing (the "premium glow"), with a hard fallback ----- */
         let composer = null;
         let bloomPass = null;
+        let useComposer = false;
         const heavy = !isTouch && (navigator.hardwareConcurrency || 4) >= 4;
         if (heavy) {
-          const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-          const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
-          composer = new THREE.EffectComposer(renderer, rt);
-          composer.addPass(new RenderPass(scene, camera));
-          bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.5, 0.82);
-          composer.addPass(bloomPass);
-          const vignette = new ShaderPass(VignetteShader);
-          vignette.uniforms.offset.value = 1.05;
-          vignette.uniforms.darkness.value = 1.15;
-          composer.addPass(vignette);
-          composer.addPass(new OutputPass());
+          try {
+            composer = new EffectComposer(renderer); // addons class — NOT THREE.EffectComposer
+            composer.addPass(new RenderPass(scene, camera));
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.5, 0.82);
+            composer.addPass(bloomPass);
+            const vignette = new ShaderPass(VignetteShader);
+            vignette.uniforms.offset.value = 1.05;
+            vignette.uniforms.darkness.value = 1.15;
+            composer.addPass(vignette);
+            composer.addPass(new OutputPass());
+            useComposer = true;
+          } catch (e) { composer = null; useComposer = false; }
         }
-        function renderScene() { if (composer) composer.render(); else renderer.render(scene, camera); }
+        // Never let post-processing failure hide the scene — fall back to direct render.
+        function renderScene() {
+          if (useComposer) {
+            try { composer.render(); return; } catch (e) { useComposer = false; }
+          }
+          renderer.render(scene, camera);
+        }
 
         /* ----- Camera choreography (6 story stops) ----- */
         const stops = [
@@ -712,8 +760,25 @@
           pivot.rotation.y = rotY;
           model.position.y = -0.52 + Math.sin(now / 1000 * 0.7) * 0.025;
 
-          // Steam
-          steamMat.uniforms.uOpacity.value = 0.85 - p * 0.62;
+          // Pour: coffee fills the cup over the first ~18% of scroll.
+          const pourP = Math.min(p / 0.18, 1);
+          const surfaceY = 0.05 + 0.22 + (0.80 - 0.22) * pourP;
+          const fillScale = 0.78 + 0.22 * pourP;
+          coffee.position.y = surfaceY; coffee.scale.set(fillScale, fillScale, 1);
+          crema.position.y = surfaceY + 0.002; crema.scale.set(fillScale, fillScale, 1);
+          const streaming = pourP > 0.012 && pourP < 0.992;
+          pour.visible = streaming;
+          if (streaming) {
+            const topY = 0.05 + 1.18;
+            const hgt = Math.max(topY - surfaceY, 0.02);
+            pour.position.y = (topY + surfaceY) / 2;
+            pour.position.x = Math.sin(now / 1000 * 6) * 0.01;
+            pour.scale.y = hgt;
+            pourMat.opacity = 0.85 * Math.min(pourP / 0.08, 1) * Math.min((1 - pourP) / 0.08, 1);
+          }
+
+          // Steam — only once there is coffee in the cup.
+          steamMat.uniforms.uOpacity.value = (0.85 - p * 0.62) * pourP;
           const pos = steamGeo.attributes.position.array;
           const t1 = now / 1000, t2 = t1 * 0.8;
           for (let i = 0; i < STEAM_COUNT; i++) {
