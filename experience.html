@@ -61,6 +61,11 @@
 
         html { scroll-behavior: auto; }
 
+        /* Lenis smooth-scroll (per lenis@1.3 readme) */
+        html.lenis, html.lenis body { height: auto; }
+        .lenis.lenis-smooth { scroll-behavior: auto !important; }
+        .lenis.lenis-stopped { overflow: clip; }
+
         body {
             font-family: 'Playfair Display', 'Georgia', serif;
             background-color: var(--bg-dark);
@@ -154,7 +159,7 @@
             letter-spacing: 5px;
             text-transform: uppercase;
             color: var(--gold);
-            opacity: 0.75;
+            opacity: 0.95;
             margin-bottom: 18px;
         }
         .title {
@@ -168,7 +173,7 @@
         .body {
             font-size: clamp(16px, 2.4vw, 20px);
             line-height: 1.85;
-            color: var(--cream-dim);
+            color: #d9cdb2; /* lifted from --cream-dim for AA contrast on the dark bg */
             max-width: 540px;
             margin: 0 auto;
         }
@@ -205,7 +210,7 @@
             font-size: 10px;
             letter-spacing: 3px;
             text-transform: uppercase;
-            color: var(--cream-dim);
+            color: var(--cream);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -263,8 +268,8 @@
     <div class="noise-overlay"></div>
 
     <header class="topbar">
-        <a href="/" class="back-link" data-track-event="Lead" data-track-content="Experience back home">
-            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <a href="/" class="back-link">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
             Back
         </a>
         <span class="wordmark">Unbound</span>
@@ -320,17 +325,13 @@
                 <div class="pullquote reveal">The Unbound House exists for those who refuse to be bound.</div>
 
                 <nav class="cta-block reveal" aria-label="Next steps">
-                    <a href="/menu" class="cta-item featured" data-track-event="ViewContent" data-track-content="Menu from Experience">
+                    <a href="/menu" class="cta-item featured">
                         Explore the Menu
-                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
                     </a>
                     <a href="https://www.ifood.com.br/delivery/cabo-frio-rj/the-unbound-house-cafe-braga/8ad1e324-9122-4fd1-9d61-2e5fa0b2e7d0" target="_blank" rel="noopener" class="cta-item" data-track-event="InitiateCheckout" data-track-content="iFood from Experience">
                         Order Delivery
-                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-                    </a>
-                    <a href="#" class="cta-item" data-track-event="Contact" data-track-content="WhatsApp from Experience">
-                        Talk on WhatsApp
-                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
                     </a>
                 </nav>
             </div>
@@ -378,8 +379,9 @@
       /* ---------- WebGL feature detection ---------- */
       function webglAvailable() {
         try {
+          // three r0.184 requests a WebGL2 context, so probe for WebGL2.
           const c = document.createElement('canvas');
-          return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+          return !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
         } catch (e) { return false; }
       }
 
@@ -398,43 +400,51 @@
         if (window.Lenis) {
           lenis = new window.Lenis({ lerp: 0.1, smoothWheel: true });
           if (window.ScrollTrigger) lenis.on('scroll', window.ScrollTrigger.update);
-          gsap.ticker.add((t) => lenis.raf(t * 1000));
+          gsap.ticker.add((t) => { if (!document.hidden) lenis.raf(t * 1000); });
           gsap.ticker.lagSmoothing(0);
         }
 
+        let revealsDone = false;
         const setupReveals = () => {
-          document.querySelectorAll('.panel').forEach((panel) => {
-            const targets = panel.querySelectorAll('.reveal');
-            if (!window.ScrollTrigger) { gsap.set(targets, { opacity: 1 }); return; }
+          if (revealsDone) return;
+          revealsDone = true;
+          try {
+            document.querySelectorAll('.panel').forEach((panel) => {
+              const targets = panel.querySelectorAll('.reveal');
+              if (!window.ScrollTrigger) { gsap.set(targets, { opacity: 1 }); return; }
 
-            targets.forEach((el) => {
-              let animatable = el;
-              // Kinetic split for headings/quotes when SplitText is available.
-              if (window.SplitText && (el.classList.contains('title') || el.classList.contains('pullquote'))) {
-                const split = new window.SplitText(el, { type: 'lines,chars', linesClass: 'split-line' });
-                animatable = split.chars;
-              }
-              gsap.set(el, { opacity: 1 });
-              gsap.from(animatable, {
-                yPercent: 40, opacity: 0, duration: 0.9, ease: 'power3.out',
-                stagger: animatable === el ? 0 : 0.012,
-                scrollTrigger: { trigger: panel, start: 'top 65%', toggleActions: 'play none none reverse' }
+              targets.forEach((el) => {
+                let animatable = el;
+                // Kinetic split for headings/quotes when SplitText is available.
+                if (window.SplitText && (el.classList.contains('title') || el.classList.contains('pullquote'))) {
+                  const split = new window.SplitText(el, { type: 'lines,chars', linesClass: 'split-line' });
+                  animatable = split.chars;
+                }
+                gsap.set(el, { opacity: 1 });
+                gsap.from(animatable, {
+                  yPercent: 40, opacity: 0, duration: 0.9, ease: 'power3.out',
+                  stagger: animatable === el ? 0 : 0.012,
+                  scrollTrigger: { trigger: panel, start: 'top 65%', toggleActions: 'play none none reverse' }
+                });
               });
             });
-          });
-          if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+            if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+          } catch (e) {
+            // Never leave content hidden if animation setup fails.
+            document.querySelectorAll('.reveal').forEach((el) => { el.style.opacity = '1'; });
+          }
         };
 
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(setupReveals);
-        } else {
-          setupReveals();
-        }
+        // Run after fonts settle (clean SplitText metrics) but NEVER wait more than
+        // 1.5s — content visibility must not depend on a network font loading.
+        const fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+        Promise.race([fontsReady, new Promise((r) => setTimeout(r, 1500))]).then(setupReveals);
 
         // Hide the scroll cue once the user starts moving.
         const cue = document.getElementById('scrollCue');
+        let cueHidden = false;
         window.addEventListener('scroll', () => {
-          if (window.scrollY > 60 && cue) cue.style.opacity = '0';
+          if (!cueHidden && cue && window.scrollY > 60) { cue.style.opacity = '0'; cueHidden = true; }
         }, { passive: true });
       } else {
         // Reduced motion / no GSAP: everything stays visible (default CSS).
@@ -444,7 +454,7 @@
 
       /* ---------- 3D scene ---------- */
       if (!reduceMotion && webglAvailable()) {
-        initScene();
+        try { initScene(); } catch (e) { /* keep the static fallback; page stays readable */ }
       }
 
       function initScene() {
@@ -467,6 +477,7 @@
         // Runtime PBR environment (no external HDR download).
         const pmrem = new THREE.PMREMGenerator(renderer);
         scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        pmrem.dispose();
 
         // Lighting
         const key = new THREE.DirectionalLight(0xfff0d8, 2.4);
@@ -691,12 +702,13 @@
           // Steam update + scroll-linked density.
           steamMat.uniforms.uOpacity.value = 0.9 - p * 0.7;
           const pos = steamGeo.attributes.position.array;
+          const t1 = now / 1000, t2 = t1 * 0.8;
           for (let i = 0; i < STEAM_COUNT; i++) {
             sLife[i] += dt / 2.6;
             if (sLife[i] >= 1) { resetSteam(i, 0); continue; }
             pos[i * 3 + 1] += dt * (0.18 + sSize[i] * 0.002);
-            pos[i * 3] += Math.sin(now / 1000 + sSeed[i]) * dt * 0.03;
-            pos[i * 3 + 2] += Math.cos(now / 1000 * 0.8 + sSeed[i]) * dt * 0.03;
+            pos[i * 3] += Math.sin(t1 + sSeed[i]) * dt * 0.03;
+            pos[i * 3 + 2] += Math.cos(t2 + sSeed[i]) * dt * 0.03;
           }
           steamGeo.attributes.position.needsUpdate = true;
           steamGeo.attributes.aLife.needsUpdate = true;
@@ -714,18 +726,37 @@
           requestAnimationFrame(loop);
         }
 
-        // Pause rendering when tab hidden.
+        // Pause fully when tab hidden — stop the ticker, not just skip a frame.
         document.addEventListener('visibilitychange', () => {
           running = !document.hidden;
           last = performance.now();
+          if (gsap) {
+            gsap.ticker.remove(frame);
+            if (!document.hidden) gsap.ticker.add(frame);
+          }
         });
 
-        // Resize
-        window.addEventListener('resize', () => {
+        // Handle WebGL context loss gracefully (mobile memory pressure).
+        canvas.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault(); running = false;
+          if (gsap) gsap.ticker.remove(frame);
+        });
+        canvas.addEventListener('webglcontextrestored', () => {
+          running = true; last = performance.now();
+          if (gsap) gsap.ticker.add(frame);
+        });
+
+        // Resize (rAF-coalesced; pixel ratio set before size so the buffer uses it)
+        let resizePending = false;
+        function applyResize() {
+          resizePending = false;
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
-          renderer.setSize(window.innerWidth, window.innerHeight);
           renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', () => {
+          if (!resizePending) { resizePending = true; requestAnimationFrame(applyResize); }
         });
 
         // Reveal the canvas once the first frame is ready.

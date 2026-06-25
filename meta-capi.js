@@ -49,6 +49,14 @@
     }
   }
 
+  // Meta standard events use fbq('track'); anything else must use trackCustom.
+  var STANDARD_EVENTS = {
+    PageView: 1, ViewContent: 1, Search: 1, AddToCart: 1, AddToWishlist: 1,
+    InitiateCheckout: 1, AddPaymentInfo: 1, Purchase: 1, Lead: 1,
+    CompleteRegistration: 1, Contact: 1, CustomizeProduct: 1, Donate: 1,
+    FindLocation: 1, Schedule: 1, StartTrial: 1, SubmitApplication: 1, Subscribe: 1
+  };
+
   // Fires an event on both the browser Pixel and the server-side CAPI,
   // deduplicated via a shared event_id. Exposed as window.unboundTrack so
   // buttons/links can report conversions (e.g. Lead, Contact).
@@ -57,7 +65,8 @@
     customData = customData || {};
 
     if (window.fbq) {
-      fbq('track', eventName, customData, { eventID: eventId });
+      var method = STANDARD_EVENTS[eventName] ? 'track' : 'trackCustom';
+      fbq(method, eventName, customData, { eventID: eventId });
     }
 
     try {
