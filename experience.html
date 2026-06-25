@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Meta Pixel Code -->
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1014649747721914');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=1014649747721914&ev=PageView&noscript=1"/></noscript>
+    <!-- End Meta Pixel Code -->
+    <!-- Meta Pixel + CAPI deduplication (fires PageView) -->
+    <script src="/meta-capi.js" defer></script>
+
+    <title>The Unbound Manifesto — The Unbound House Café</title>
+    <meta name="description" content="A cinematic journey through the founding story of The Unbound House Café — for those who refuse to be bound.">
+    <link rel="canonical" href="https://theunboundcafe.com/unbound">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://theunboundcafe.com/unbound">
+    <meta property="og:title" content="The Unbound Manifesto — The Unbound House Café">
+    <meta property="og:description" content="A cinematic journey through the founding story of The Unbound House Café — for those who refuse to be bound.">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+
+    <!-- Zero-build 3D: Three.js via ES module import map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+      }
+    }
+    </script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #353a2c;
+            --bg-card: #3e4434;
+            --cream: #f0e2c8;
+            --cream-light: #f5edd9;
+            --cream-dim: #b8ad97;
+            --gold: #c9b896;
+            --accent: #a09270;
+        }
+
+        html { scroll-behavior: auto; }
+
+        body {
+            font-family: 'Playfair Display', 'Georgia', serif;
+            background-color: var(--bg-dark);
+            color: var(--cream);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(160, 146, 112, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(160, 146, 112, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* WebGL stage */
+        #scene {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1.2s ease;
+        }
+        #scene.ready { opacity: 1; }
+
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Top bar */
+        .topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            z-index: 10;
+            mix-blend-mode: difference;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--cream);
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.85;
+            transition: opacity 0.3s ease;
+        }
+        .back-link:hover { opacity: 1; }
+        .back-link svg { width: 14px; height: 14px; fill: currentColor; }
+        .wordmark {
+            font-size: 11px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: var(--cream);
+            opacity: 0.7;
+        }
+
+        /* Content layer */
+        .content { position: relative; z-index: 2; }
+
+        .panel {
+            min-height: 100svh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 80px 24px;
+        }
+        .panel-inner { width: 100%; max-width: 620px; }
+
+        .eyebrow {
+            font-size: 11px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: var(--gold);
+            opacity: 0.75;
+            margin-bottom: 18px;
+        }
+        .title {
+            font-size: clamp(38px, 9vw, 84px);
+            font-weight: 700;
+            line-height: 1.04;
+            letter-spacing: 0.5px;
+            color: var(--cream-light);
+            margin-bottom: 26px;
+        }
+        .body {
+            font-size: clamp(16px, 2.4vw, 20px);
+            line-height: 1.85;
+            color: var(--cream-dim);
+            max-width: 540px;
+            margin: 0 auto;
+        }
+        .body em { font-style: italic; color: var(--gold); }
+        .body strong { color: var(--cream); font-weight: 500; }
+
+        .pullquote {
+            margin: 28px auto 0;
+            padding: 18px 24px;
+            max-width: 540px;
+            border-left: 2px solid rgba(201, 184, 150, 0.45);
+            font-size: clamp(16px, 2.6vw, 22px);
+            font-style: italic;
+            color: var(--cream);
+            line-height: 1.6;
+            text-align: left;
+        }
+        .panel--final .pullquote {
+            border-left: none;
+            text-align: center;
+            font-size: clamp(22px, 5vw, 44px);
+            line-height: 1.25;
+            padding: 0;
+            color: var(--cream-light);
+            max-width: 720px;
+        }
+
+        .scroll-cue {
+            position: fixed;
+            left: 50%;
+            bottom: 26px;
+            transform: translateX(-50%);
+            z-index: 5;
+            font-size: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--cream-dim);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.6s ease;
+        }
+        .scroll-cue .dot {
+            width: 1px; height: 34px;
+            background: linear-gradient(var(--cream-dim), transparent);
+            animation: cue 2s ease-in-out infinite;
+        }
+        @keyframes cue { 0%,100% { opacity: 0.2; transform: scaleY(0.6); } 50% { opacity: 0.8; transform: scaleY(1); } }
+
+        /* CTA block */
+        .cta-block {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            max-width: 360px;
+            margin: 40px auto 0;
+        }
+        .cta-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 24px;
+            background: rgba(240, 226, 200, 0.04);
+            border: 1px solid rgba(240, 226, 200, 0.12);
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--cream);
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .cta-item:hover { background: rgba(201, 184, 150, 0.12); border-color: rgba(201, 184, 150, 0.3); transform: translateY(-1px); }
+        .cta-item.featured { background: rgba(201, 184, 150, 0.1); border-color: rgba(201, 184, 150, 0.25); }
+        .cta-item svg { width: 16px; height: 16px; fill: var(--gold); flex-shrink: 0; }
+
+        /* Reveal animation state — only applied when JS enhancement is active,
+           so the page is fully readable without JS / with reduced motion. */
+        body.enhanced .reveal { opacity: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            #scene { transition: none; }
+            .scroll-cue .dot { animation: none; }
+            body.enhanced .reveal { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="noise-overlay"></div>
+
+    <header class="topbar">
+        <a href="/" class="back-link" data-track-event="Lead" data-track-content="Experience back home">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            Back
+        </a>
+        <span class="wordmark">Unbound</span>
+    </header>
+
+    <main class="content">
+        <section class="panel" data-cam="0">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">01 — March 10, 2014</div>
+                <h1 class="title reveal" aria-label="The Beginning">The Beginning</h1>
+                <p class="body reveal">DOX was born from <strong>Ivo's dream</strong>. We united our lives and refused the script others had written for us — the one that called our plan <em>"impossible"</em> and told us to seek <em>"real jobs."</em></p>
+                <div class="pullquote reveal">For those who come from the bottom, "no" is only the starting point.</div>
+            </div>
+        </section>
+
+        <section class="panel" data-cam="1">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">02</div>
+                <h2 class="title reveal" aria-label="12 Years of Resilience">12 Years of Resilience</h2>
+                <p class="body reveal">Crises, a pandemic, a thousand reasons to stop. We did not merely survive — <strong>we matured.</strong> We learned to build with sweat, honor, and an unshakeable belief in the invisible.</p>
+            </div>
+        </section>
+
+        <section class="panel" data-cam="2">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">03</div>
+                <h2 class="title reveal" aria-label="International Roots">International Roots</h2>
+                <p class="body reveal"><strong>English was the key</strong> that opened global doors. Across oceans we learned the pillars of this house: the <em>dignity of work</em>, <em>generosity</em>, and the <em>celebration of individual freedom.</em></p>
+            </div>
+        </section>
+
+        <section class="panel" data-cam="3">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">04</div>
+                <h2 class="title reveal" aria-label="A Shift in Paradigm">A Shift in Paradigm</h2>
+                <p class="body reveal">Every great transformation begins in the mind before it shows in the world. <strong>The Unbound House</strong> is that shift made physical — a monument to every battle won.</p>
+                <div class="pullquote reveal">This place exists because we chose to build it when the world said we couldn't.</div>
+            </div>
+        </section>
+
+        <section class="panel" data-cam="4">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">05</div>
+                <h2 class="title reveal" aria-label="Your Expansion Hub">Your Expansion Hub</h2>
+                <p class="body reveal">More than a café — <strong>a reference point for the English-speaking community.</strong> A place to interact, practice, and expand horizons. We bring the curation of our journeys into your cup.</p>
+            </div>
+        </section>
+
+        <section class="panel panel--final" data-cam="5">
+            <div class="panel-inner">
+                <div class="eyebrow reveal">06 — Our Legacy</div>
+                <p class="body reveal" style="margin-bottom:22px;">You are exactly what you believe yourself to be. Do not conform. Do not settle for little.</p>
+                <div class="pullquote reveal">The Unbound House exists for those who refuse to be bound.</div>
+
+                <nav class="cta-block reveal" aria-label="Next steps">
+                    <a href="/menu" class="cta-item featured" data-track-event="ViewContent" data-track-content="Menu from Experience">
+                        Explore the Menu
+                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    </a>
+                    <a href="https://www.ifood.com.br/delivery/cabo-frio-rj/the-unbound-house-cafe-braga/8ad1e324-9122-4fd1-9d61-2e5fa0b2e7d0" target="_blank" rel="noopener" class="cta-item" data-track-event="InitiateCheckout" data-track-content="iFood from Experience">
+                        Order Delivery
+                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    </a>
+                    <a href="#" class="cta-item" data-track-event="Contact" data-track-content="WhatsApp from Experience">
+                        Talk on WhatsApp
+                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                    </a>
+                </nav>
+            </div>
+        </section>
+    </main>
+
+    <div class="scroll-cue" id="scrollCue">Scroll<span class="dot"></span></div>
+
+    <!-- Animation libs (UMD globals, load before the module) -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+    <script src="https://unpkg.com/lenis@1.3.24/dist/lenis.min.js"></script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+      /* ---------- Tracking helpers (reuse meta-capi.js) ---------- */
+      function track(name, data) {
+        if (typeof window.unboundTrack === 'function') window.unboundTrack(name, data || {});
+      }
+      window.addEventListener('load', () => {
+        track('ViewContent', { content_name: 'Unbound Manifesto', content_category: 'Experience' });
+      });
+      // experience_complete — fired once when the final panel is reached.
+      let completed = false;
+      const finalPanel = document.querySelector('.panel--final');
+      if (finalPanel && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting && !completed) {
+              completed = true;
+              track('experience_complete', { content_name: 'Unbound Manifesto' });
+              io.disconnect();
+            }
+          });
+        }, { threshold: 0.5 });
+        io.observe(finalPanel);
+      }
+
+      /* ---------- WebGL feature detection ---------- */
+      function webglAvailable() {
+        try {
+          const c = document.createElement('canvas');
+          return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+        } catch (e) { return false; }
+      }
+
+      /* ---------- Smooth scroll + kinetic typography (skip on reduced motion) ---------- */
+      const gsap = window.gsap;
+      let lenis = null;
+
+      if (!reduceMotion && gsap) {
+        const plugins = [];
+        if (window.ScrollTrigger) plugins.push(window.ScrollTrigger);
+        if (window.SplitText) plugins.push(window.SplitText);
+        if (plugins.length) gsap.registerPlugin(...plugins);
+
+        document.body.classList.add('enhanced');
+
+        if (window.Lenis) {
+          lenis = new window.Lenis({ lerp: 0.1, smoothWheel: true });
+          if (window.ScrollTrigger) lenis.on('scroll', window.ScrollTrigger.update);
+          gsap.ticker.add((t) => lenis.raf(t * 1000));
+          gsap.ticker.lagSmoothing(0);
+        }
+
+        const setupReveals = () => {
+          document.querySelectorAll('.panel').forEach((panel) => {
+            const targets = panel.querySelectorAll('.reveal');
+            if (!window.ScrollTrigger) { gsap.set(targets, { opacity: 1 }); return; }
+
+            targets.forEach((el) => {
+              let animatable = el;
+              // Kinetic split for headings/quotes when SplitText is available.
+              if (window.SplitText && (el.classList.contains('title') || el.classList.contains('pullquote'))) {
+                const split = new window.SplitText(el, { type: 'lines,chars', linesClass: 'split-line' });
+                animatable = split.chars;
+              }
+              gsap.set(el, { opacity: 1 });
+              gsap.from(animatable, {
+                yPercent: 40, opacity: 0, duration: 0.9, ease: 'power3.out',
+                stagger: animatable === el ? 0 : 0.012,
+                scrollTrigger: { trigger: panel, start: 'top 65%', toggleActions: 'play none none reverse' }
+              });
+            });
+          });
+          if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        };
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(setupReveals);
+        } else {
+          setupReveals();
+        }
+
+        // Hide the scroll cue once the user starts moving.
+        const cue = document.getElementById('scrollCue');
+        window.addEventListener('scroll', () => {
+          if (window.scrollY > 60 && cue) cue.style.opacity = '0';
+        }, { passive: true });
+      } else {
+        // Reduced motion / no GSAP: everything stays visible (default CSS).
+        const cue = document.getElementById('scrollCue');
+        if (cue) cue.style.display = 'none';
+      }
+
+      /* ---------- 3D scene ---------- */
+      if (!reduceMotion && webglAvailable()) {
+        initScene();
+      }
+
+      function initScene() {
+        const canvas = document.getElementById('scene');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.shadowMap.enabled = !isTouch;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x353a2c);
+
+        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0.2, 4);
+
+        // Runtime PBR environment (no external HDR download).
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        // Lighting
+        const key = new THREE.DirectionalLight(0xfff0d8, 2.4);
+        key.position.set(3, 5, 4);
+        key.castShadow = !isTouch;
+        if (key.castShadow) {
+          key.shadow.mapSize.set(1024, 1024);
+          key.shadow.camera.near = 1; key.shadow.camera.far = 20;
+          key.shadow.bias = -0.0005;
+        }
+        scene.add(key);
+        const fill = new THREE.HemisphereLight(0xc9b896, 0x2a2e22, 0.7);
+        scene.add(fill);
+        const rim = new THREE.DirectionalLight(0xc9b896, 1.4);
+        rim.position.set(-4, 2, -5);
+        scene.add(rim);
+
+        /* ----- Procedural coffee cup ----- */
+        const cup = new THREE.Group();
+
+        const profile = [
+          [0.00, 0.00], [0.46, 0.00], [0.50, 0.05], [0.50, 0.10],
+          [0.62, 0.86], [0.64, 0.93], [0.60, 0.93], [0.575, 0.86],
+          [0.42, 0.13], [0.00, 0.13]
+        ].map(p => new THREE.Vector2(p[0], p[1]));
+        const cupGeo = new THREE.LatheGeometry(profile, 64);
+        cupGeo.computeVertexNormals();
+        const ceramic = new THREE.MeshPhysicalMaterial({
+          color: 0xf0e2c8, roughness: 0.38, metalness: 0.0,
+          clearcoat: 0.55, clearcoatRoughness: 0.35, side: THREE.DoubleSide, envMapIntensity: 0.9
+        });
+        const cupMesh = new THREE.Mesh(cupGeo, ceramic);
+        cupMesh.castShadow = !isTouch; cupMesh.receiveShadow = !isTouch;
+        cup.add(cupMesh);
+
+        // Coffee surface
+        const coffeeMat = new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.12, metalness: 0.0, envMapIntensity: 1.2 });
+        const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.55, 48), coffeeMat);
+        coffee.rotation.x = -Math.PI / 2;
+        coffee.position.y = 0.80;
+        cup.add(coffee);
+
+        // Gold rim accent (scroll-reactive glow)
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xc9b896, metalness: 1.0, roughness: 0.25, emissive: 0xc9b896, emissiveIntensity: 0.15 });
+        const rimRing = new THREE.Mesh(new THREE.TorusGeometry(0.625, 0.012, 16, 80), goldMat);
+        rimRing.rotation.x = Math.PI / 2;
+        rimRing.position.y = 0.925;
+        cup.add(rimRing);
+
+        // Handle
+        const handle = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.045, 20, 48, Math.PI * 1.25), ceramic);
+        handle.position.set(0.6, 0.48, 0);
+        handle.rotation.z = -Math.PI * 0.08;
+        handle.castShadow = !isTouch;
+        cup.add(handle);
+
+        // Center the cup group around the origin (cup height ~0.93).
+        cup.position.y = -0.46;
+        const cupPivot = new THREE.Group();
+        cupPivot.add(cup);
+        scene.add(cupPivot);
+
+        // Contact shadow plane
+        if (!isTouch) {
+          const shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(6, 6),
+            new THREE.ShadowMaterial({ opacity: 0.35 })
+          );
+          shadowPlane.rotation.x = -Math.PI / 2;
+          shadowPlane.position.y = -0.48;
+          shadowPlane.receiveShadow = true;
+          scene.add(shadowPlane);
+        }
+
+        /* ----- Steam (custom point shader for per-particle fade) ----- */
+        const STEAM_COUNT = isTouch ? 90 : 220;
+        const steamGeo = new THREE.BufferGeometry();
+        const sPos = new Float32Array(STEAM_COUNT * 3);
+        const sLife = new Float32Array(STEAM_COUNT);
+        const sSize = new Float32Array(STEAM_COUNT);
+        const sSeed = new Float32Array(STEAM_COUNT);
+        for (let i = 0; i < STEAM_COUNT; i++) {
+          resetSteam(i, Math.random());
+        }
+        function resetSteam(i, life) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * 0.28;
+          sPos[i * 3] = Math.cos(a) * r;
+          sPos[i * 3 + 1] = 0.42 + Math.random() * 0.1;
+          sPos[i * 3 + 2] = Math.sin(a) * r;
+          sLife[i] = life;
+          sSize[i] = 18 + Math.random() * 26;
+          sSeed[i] = Math.random() * 100;
+        }
+        steamGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+        steamGeo.setAttribute('aLife', new THREE.BufferAttribute(sLife, 1));
+        steamGeo.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
+
+        const steamTex = makeSteamSprite();
+        const steamMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTex: { value: steamTex },
+            uColor: { value: new THREE.Color(0xf0e2c8) },
+            uOpacity: { value: 0.9 }
+          },
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+          vertexShader: `
+            attribute float aLife; attribute float aSize; varying float vLife;
+            void main(){ vLife = aLife; vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = aSize * (260.0 / -mv.z); gl_Position = projectionMatrix * mv; }`,
+          fragmentShader: `
+            uniform sampler2D uTex; uniform vec3 uColor; uniform float uOpacity; varying float vLife;
+            void main(){ float a = texture2D(uTex, gl_PointCoord).a;
+            float fade = sin(clamp(vLife,0.0,1.0) * 3.14159);
+            gl_FragColor = vec4(uColor, a * fade * uOpacity); }`
+        });
+        const steam = new THREE.Points(steamGeo, steamMat);
+        cupPivot.add(steam);
+
+        function makeSteamSprite() {
+          const s = 64;
+          const cv = document.createElement('canvas'); cv.width = cv.height = s;
+          const ctx = cv.getContext('2d');
+          const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+          g.addColorStop(0, 'rgba(255,255,255,0.9)');
+          g.addColorStop(0.4, 'rgba(255,255,255,0.35)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+          const tex = new THREE.CanvasTexture(cv);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          return tex;
+        }
+
+        /* ----- Camera choreography (6 story stops) ----- */
+        const stops = [
+          { pos: [0.0, -0.25, 2.5], tgt: [0.0, 0.15, 0.0], fov: 32 }, // 01 close, low
+          { pos: [2.3, 0.35, 2.1],  tgt: [0.0, 0.0, 0.0],  fov: 35 }, // 02 pull back / side
+          { pos: [-2.8, 0.7, 1.7],  tgt: [0.0, 0.0, 0.0],  fov: 41 }, // 03 wide orbit
+          { pos: [0.25, 3.1, 0.7],  tgt: [0.0, -0.1, 0.0], fov: 34 }, // 04 top-down
+          { pos: [1.9, 0.5, 2.6],   tgt: [0.0, 0.1, 0.0],  fov: 34 }, // 05 inviting 3/4
+          { pos: [0.0, 0.45, 4.3],  tgt: [0.0, 0.15, 0.0], fov: 30 }  // 06 majestic pull back
+        ];
+        const desiredPos = new THREE.Vector3().fromArray(stops[0].pos);
+        const desiredTgt = new THREE.Vector3().fromArray(stops[0].tgt);
+        const curTgt = desiredTgt.clone();
+        let desiredFov = stops[0].fov;
+
+        function sampleStops(p) {
+          const n = stops.length - 1;
+          const f = Math.min(Math.max(p, 0), 1) * n;
+          const i = Math.floor(f);
+          const t = f - i;
+          const a = stops[i];
+          const b = stops[Math.min(i + 1, n)];
+          desiredPos.set(
+            a.pos[0] + (b.pos[0] - a.pos[0]) * t,
+            a.pos[1] + (b.pos[1] - a.pos[1]) * t,
+            a.pos[2] + (b.pos[2] - a.pos[2]) * t
+          );
+          desiredTgt.set(
+            a.tgt[0] + (b.tgt[0] - a.tgt[0]) * t,
+            a.tgt[1] + (b.tgt[1] - a.tgt[1]) * t,
+            a.tgt[2] + (b.tgt[2] - a.tgt[2]) * t
+          );
+          desiredFov = a.fov + (b.fov - a.fov) * t;
+        }
+
+        /* ----- Pointer parallax (desktop) ----- */
+        const pointer = { x: 0, y: 0 };
+        if (!isTouch) {
+          window.addEventListener('pointermove', (e) => {
+            pointer.x = (e.clientX / window.innerWidth - 0.5);
+            pointer.y = (e.clientY / window.innerHeight - 0.5);
+          });
+        }
+
+        /* ----- Render loop (single ticker, shared with Lenis) ----- */
+        let rotY = 0, idle = 0;
+        let last = performance.now();
+        let running = true;
+
+        function scrollProgress() {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          return max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
+        }
+
+        function damp(cur, target, lambda, dt) {
+          return cur + (target - cur) * (1 - Math.exp(-lambda * dt));
+        }
+
+        function frame() {
+          const now = performance.now();
+          if (!running) { last = now; return; }
+          const dt = Math.min((now - last) / 1000, 0.05);
+          last = now;
+          const p = scrollProgress();
+
+          sampleStops(p);
+
+          // Camera position with weight + pointer parallax.
+          const px = desiredPos.x + pointer.x * 0.5;
+          const py = desiredPos.y - pointer.y * 0.35;
+          camera.position.x = damp(camera.position.x, px, 4, dt);
+          camera.position.y = damp(camera.position.y, py, 4, dt);
+          camera.position.z = damp(camera.position.z, desiredPos.z, 4, dt);
+          curTgt.x = damp(curTgt.x, desiredTgt.x, 5, dt);
+          curTgt.y = damp(curTgt.y, desiredTgt.y, 5, dt);
+          curTgt.z = damp(curTgt.z, desiredTgt.z, 5, dt);
+          camera.lookAt(curTgt);
+          if (Math.abs(camera.fov - desiredFov) > 0.01) {
+            camera.fov = damp(camera.fov, desiredFov, 4, dt);
+            camera.updateProjectionMatrix();
+          }
+
+          // Cup rotation: scroll-driven target + idle spin, with inertia.
+          idle += dt * 0.18;
+          const targetRot = p * Math.PI * 3 + idle;
+          rotY = damp(rotY, targetRot, 3.2, dt);
+          cupPivot.rotation.y = rotY;
+          cupPivot.position.y = Math.sin(now / 1000 * 0.8) * 0.03;
+
+          // Steam update + scroll-linked density.
+          steamMat.uniforms.uOpacity.value = 0.9 - p * 0.7;
+          const pos = steamGeo.attributes.position.array;
+          for (let i = 0; i < STEAM_COUNT; i++) {
+            sLife[i] += dt / 2.6;
+            if (sLife[i] >= 1) { resetSteam(i, 0); continue; }
+            pos[i * 3 + 1] += dt * (0.18 + sSize[i] * 0.002);
+            pos[i * 3] += Math.sin(now / 1000 + sSeed[i]) * dt * 0.03;
+            pos[i * 3 + 2] += Math.cos(now / 1000 * 0.8 + sSeed[i]) * dt * 0.03;
+          }
+          steamGeo.attributes.position.needsUpdate = true;
+          steamGeo.attributes.aLife.needsUpdate = true;
+
+          // Gold glow intensifies toward the legacy finale.
+          goldMat.emissiveIntensity = 0.15 + p * 1.1;
+
+          renderer.render(scene, camera);
+        }
+
+        if (gsap) {
+          gsap.ticker.add(frame);
+        } else {
+          const loop = () => { frame(); requestAnimationFrame(loop); };
+          requestAnimationFrame(loop);
+        }
+
+        // Pause rendering when tab hidden.
+        document.addEventListener('visibilitychange', () => {
+          running = !document.hidden;
+          last = performance.now();
+        });
+
+        // Resize
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+        });
+
+        // Reveal the canvas once the first frame is ready.
+        requestAnimationFrame(() => {
+          frame();
+          canvas.classList.add('ready');
+          if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        });
+      }
+    </script>
+</body>
+</html>
