@@ -68,21 +68,10 @@
 
         body {
             font-family: 'Playfair Display', 'Georgia', serif;
-            background-color: var(--bg-dark);
+            background-color: #2a2e22;
             color: var(--cream);
             overflow-x: hidden;
             position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                radial-gradient(ellipse at 20% 50%, rgba(160, 146, 112, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(160, 146, 112, 0.04) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: 0;
         }
 
         /* WebGL stage */
@@ -98,10 +87,22 @@
         }
         #scene.ready { opacity: 1; }
 
+        /* Static fallback backdrop (shown when WebGL/3D is unavailable) */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 50% 38%, rgba(201,184,150,0.10) 0%, transparent 55%),
+                linear-gradient(180deg, #3b4133 0%, #2a2e22 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
         .noise-overlay {
             position: fixed;
             inset: 0;
-            opacity: 0.03;
+            opacity: 0.04;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
             pointer-events: none;
             z-index: 1;
@@ -163,12 +164,13 @@
             margin-bottom: 18px;
         }
         .title {
-            font-size: clamp(38px, 9vw, 84px);
+            font-size: clamp(40px, 9vw, 88px);
             font-weight: 700;
-            line-height: 1.04;
+            line-height: 1.03;
             letter-spacing: 0.5px;
             color: var(--cream-light);
             margin-bottom: 26px;
+            text-shadow: 0 2px 40px rgba(0,0,0,0.35);
         }
         .body {
             font-size: clamp(16px, 2.4vw, 20px);
@@ -176,6 +178,7 @@
             color: #d9cdb2; /* lifted from --cream-dim for AA contrast on the dark bg */
             max-width: 540px;
             margin: 0 auto;
+            text-shadow: 0 1px 20px rgba(0,0,0,0.4);
         }
         .body em { font-style: italic; color: var(--gold); }
         .body strong { color: var(--cream); font-weight: 500; }
@@ -239,17 +242,18 @@
             justify-content: space-between;
             gap: 16px;
             padding: 18px 24px;
-            background: rgba(240, 226, 200, 0.04);
-            border: 1px solid rgba(240, 226, 200, 0.12);
+            background: rgba(240, 226, 200, 0.06);
+            border: 1px solid rgba(240, 226, 200, 0.14);
             border-radius: 4px;
             text-decoration: none;
             color: var(--cream);
             font-size: 14px;
             letter-spacing: 1px;
+            backdrop-filter: blur(4px);
             transition: all 0.3s ease;
         }
-        .cta-item:hover { background: rgba(201, 184, 150, 0.12); border-color: rgba(201, 184, 150, 0.3); transform: translateY(-1px); }
-        .cta-item.featured { background: rgba(201, 184, 150, 0.1); border-color: rgba(201, 184, 150, 0.25); }
+        .cta-item:hover { background: rgba(201, 184, 150, 0.14); border-color: rgba(201, 184, 150, 0.34); transform: translateY(-1px); }
+        .cta-item.featured { background: rgba(201, 184, 150, 0.12); border-color: rgba(201, 184, 150, 0.28); }
         .cta-item svg { width: 16px; height: 16px; fill: var(--gold); flex-shrink: 0; }
 
         /* Reveal animation state — only applied when JS enhancement is active,
@@ -349,18 +353,23 @@
     <script type="module">
       import * as THREE from 'three';
       import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+      import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+      import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+      import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+      import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+      import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+      import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
-      /* ---------- Tracking helpers (reuse meta-capi.js) ---------- */
+      /* ---------- Tracking (reuse meta-capi.js) ---------- */
       function track(name, data) {
         if (typeof window.unboundTrack === 'function') window.unboundTrack(name, data || {});
       }
       window.addEventListener('load', () => {
         track('ViewContent', { content_name: 'Unbound Manifesto', content_category: 'Experience' });
       });
-      // experience_complete — fired once when the final panel is reached.
       let completed = false;
       const finalPanel = document.querySelector('.panel--final');
       if (finalPanel && 'IntersectionObserver' in window) {
@@ -376,16 +385,14 @@
         io.observe(finalPanel);
       }
 
-      /* ---------- WebGL feature detection ---------- */
       function webglAvailable() {
         try {
-          // three r0.184 requests a WebGL2 context, so probe for WebGL2.
           const c = document.createElement('canvas');
           return !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
         } catch (e) { return false; }
       }
 
-      /* ---------- Smooth scroll + kinetic typography (skip on reduced motion) ---------- */
+      /* ---------- Smooth scroll + kinetic typography ---------- */
       const gsap = window.gsap;
       let lenis = null;
 
@@ -398,7 +405,8 @@
         document.body.classList.add('enhanced');
 
         if (window.Lenis) {
-          lenis = new window.Lenis({ lerp: 0.1, smoothWheel: true });
+          // Snappier than default so scroll doesn't feel "floaty"/delayed.
+          lenis = new window.Lenis({ lerp: 0.16, wheelMultiplier: 1.05, smoothWheel: true });
           if (window.ScrollTrigger) lenis.on('scroll', window.ScrollTrigger.update);
           gsap.ticker.add((t) => { if (!document.hidden) lenis.raf(t * 1000); });
           gsap.ticker.lagSmoothing(0);
@@ -412,10 +420,8 @@
             document.querySelectorAll('.panel').forEach((panel) => {
               const targets = panel.querySelectorAll('.reveal');
               if (!window.ScrollTrigger) { gsap.set(targets, { opacity: 1 }); return; }
-
               targets.forEach((el) => {
                 let animatable = el;
-                // Kinetic split for headings/quotes when SplitText is available.
                 if (window.SplitText && (el.classList.contains('title') || el.classList.contains('pullquote'))) {
                   const split = new window.SplitText(el, { type: 'lines,chars', linesClass: 'split-line' });
                   animatable = split.chars;
@@ -430,24 +436,18 @@
             });
             if (window.ScrollTrigger) window.ScrollTrigger.refresh();
           } catch (e) {
-            // Never leave content hidden if animation setup fails.
             document.querySelectorAll('.reveal').forEach((el) => { el.style.opacity = '1'; });
           }
         };
-
-        // Run after fonts settle (clean SplitText metrics) but NEVER wait more than
-        // 1.5s — content visibility must not depend on a network font loading.
         const fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
         Promise.race([fontsReady, new Promise((r) => setTimeout(r, 1500))]).then(setupReveals);
 
-        // Hide the scroll cue once the user starts moving.
         const cue = document.getElementById('scrollCue');
         let cueHidden = false;
         window.addEventListener('scroll', () => {
           if (!cueHidden && cue && window.scrollY > 60) { cue.style.opacity = '0'; cueHidden = true; }
         }, { passive: true });
       } else {
-        // Reduced motion / no GSAP: everything stays visible (default CSS).
         const cue = document.getElementById('scrollCue');
         if (cue) cue.style.display = 'none';
       }
@@ -459,189 +459,207 @@
 
       function initScene() {
         const canvas = document.getElementById('scene');
+        const dprCap = isTouch ? 1.5 : 2;
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.05;
-        renderer.shadowMap.enabled = !isTouch;
+        renderer.toneMappingExposure = 1.15;
+        renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x353a2c);
+        scene.background = makeBgTexture();
 
-        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0.2, 4);
+        const camera = new THREE.PerspectiveCamera(34, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0.3, 4.2);
 
         // Runtime PBR environment (no external HDR download).
         const pmrem = new THREE.PMREMGenerator(renderer);
         scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
         pmrem.dispose();
 
-        // Lighting
-        const key = new THREE.DirectionalLight(0xfff0d8, 2.4);
-        key.position.set(3, 5, 4);
-        key.castShadow = !isTouch;
-        if (key.castShadow) {
-          key.shadow.mapSize.set(1024, 1024);
-          key.shadow.camera.near = 1; key.shadow.camera.far = 20;
-          key.shadow.bias = -0.0005;
-        }
+        // Cinematic 3-point lighting.
+        const key = new THREE.DirectionalLight(0xfff1d8, 2.6);
+        key.position.set(3.2, 5.0, 3.5);
+        key.castShadow = true;
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.near = 1; key.shadow.camera.far = 22;
+        key.shadow.bias = -0.0004;
         scene.add(key);
-        const fill = new THREE.HemisphereLight(0xc9b896, 0x2a2e22, 0.7);
-        scene.add(fill);
-        const rim = new THREE.DirectionalLight(0xc9b896, 1.4);
-        rim.position.set(-4, 2, -5);
+        scene.add(new THREE.HemisphereLight(0xcdbf9c, 0x24281c, 0.55));
+        const rim = new THREE.DirectionalLight(0xc9b896, 2.4);
+        rim.position.set(-4.5, 2.2, -4.5);
         scene.add(rim);
+        const fillSpot = new THREE.SpotLight(0xf0e2c8, 14, 18, Math.PI / 5, 0.6, 1.4);
+        fillSpot.position.set(-2.0, 3.5, 3.0);
+        scene.add(fillSpot);
 
-        /* ----- Procedural coffee cup ----- */
-        const cup = new THREE.Group();
+        /* ----- Materials ----- */
+        const ceramic = new THREE.MeshPhysicalMaterial({
+          color: 0xefe3ca, roughness: 0.32, metalness: 0.0,
+          clearcoat: 0.7, clearcoatRoughness: 0.28, sheen: 0.4, sheenColor: 0xffffff,
+          envMapIntensity: 1.1, side: THREE.DoubleSide
+        });
+        const coffeeMat = new THREE.MeshPhysicalMaterial({
+          color: 0x231308, roughness: 0.08, metalness: 0.0, clearcoat: 1.0,
+          clearcoatRoughness: 0.06, envMapIntensity: 1.6
+        });
+        const cremaMat = new THREE.MeshStandardMaterial({ color: 0x6b4422, roughness: 0.5, metalness: 0.0, envMapIntensity: 0.8 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xc9b896, metalness: 1.0, roughness: 0.22, emissive: 0xc9b896, emissiveIntensity: 0.2 });
 
-        const profile = [
+        /* ----- Model: saucer + cup ----- */
+        const model = new THREE.Group();
+
+        // Saucer
+        const saucerPts = [
+          [0.00, 0.00], [0.95, 0.00], [1.02, 0.04], [1.05, 0.09],
+          [0.92, 0.105], [0.28, 0.05], [0.00, 0.05]
+        ].map((p) => new THREE.Vector2(p[0], p[1]));
+        const saucer = new THREE.Mesh(new THREE.LatheGeometry(saucerPts, 96), ceramic);
+        saucer.castShadow = true; saucer.receiveShadow = true;
+        model.add(saucer);
+
+        // Cup (sits on the saucer at y ~0.05)
+        const cupPts = [
           [0.00, 0.00], [0.46, 0.00], [0.50, 0.05], [0.50, 0.10],
           [0.62, 0.86], [0.64, 0.93], [0.60, 0.93], [0.575, 0.86],
           [0.42, 0.13], [0.00, 0.13]
-        ].map(p => new THREE.Vector2(p[0], p[1]));
-        const cupGeo = new THREE.LatheGeometry(profile, 64);
-        cupGeo.computeVertexNormals();
-        const ceramic = new THREE.MeshPhysicalMaterial({
-          color: 0xf0e2c8, roughness: 0.38, metalness: 0.0,
-          clearcoat: 0.55, clearcoatRoughness: 0.35, side: THREE.DoubleSide, envMapIntensity: 0.9
-        });
-        const cupMesh = new THREE.Mesh(cupGeo, ceramic);
-        cupMesh.castShadow = !isTouch; cupMesh.receiveShadow = !isTouch;
-        cup.add(cupMesh);
+        ].map((p) => new THREE.Vector2(p[0], p[1]));
+        const cup = new THREE.Mesh(new THREE.LatheGeometry(cupPts, 96), ceramic);
+        cup.position.y = 0.05;
+        cup.castShadow = true; cup.receiveShadow = true;
+        model.add(cup);
 
-        // Coffee surface
-        const coffeeMat = new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.12, metalness: 0.0, envMapIntensity: 1.2 });
-        const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.55, 48), coffeeMat);
+        // Coffee surface + crema ring
+        const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.55, 64), coffeeMat);
         coffee.rotation.x = -Math.PI / 2;
-        coffee.position.y = 0.80;
-        cup.add(coffee);
+        coffee.position.y = 0.05 + 0.80;
+        model.add(coffee);
+        const crema = new THREE.Mesh(new THREE.RingGeometry(0.46, 0.56, 64), cremaMat);
+        crema.rotation.x = -Math.PI / 2;
+        crema.position.y = 0.05 + 0.802;
+        model.add(crema);
 
-        // Gold rim accent (scroll-reactive glow)
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xc9b896, metalness: 1.0, roughness: 0.25, emissive: 0xc9b896, emissiveIntensity: 0.15 });
-        const rimRing = new THREE.Mesh(new THREE.TorusGeometry(0.625, 0.012, 16, 80), goldMat);
+        // Gold rim (scroll-reactive glow → blooms)
+        const rimRing = new THREE.Mesh(new THREE.TorusGeometry(0.625, 0.012, 20, 96), goldMat);
         rimRing.rotation.x = Math.PI / 2;
-        rimRing.position.y = 0.925;
-        cup.add(rimRing);
+        rimRing.position.y = 0.05 + 0.925;
+        model.add(rimRing);
 
         // Handle
-        const handle = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.045, 20, 48, Math.PI * 1.25), ceramic);
-        handle.position.set(0.6, 0.48, 0);
+        const handle = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.045, 24, 60, Math.PI * 1.25), ceramic);
+        handle.position.set(0.6, 0.05 + 0.48, 0);
         handle.rotation.z = -Math.PI * 0.08;
-        handle.castShadow = !isTouch;
-        cup.add(handle);
+        handle.castShadow = true;
+        model.add(handle);
 
-        // Center the cup group around the origin (cup height ~0.93).
-        cup.position.y = -0.46;
-        const cupPivot = new THREE.Group();
-        cupPivot.add(cup);
-        scene.add(cupPivot);
+        // Center the whole model around the origin and add to a spin pivot.
+        model.position.y = -0.52;
+        const pivot = new THREE.Group();
+        pivot.add(model);
+        scene.add(pivot);
 
-        // Contact shadow plane
-        if (!isTouch) {
-          const shadowPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(6, 6),
-            new THREE.ShadowMaterial({ opacity: 0.35 })
-          );
-          shadowPlane.rotation.x = -Math.PI / 2;
-          shadowPlane.position.y = -0.48;
-          shadowPlane.receiveShadow = true;
-          scene.add(shadowPlane);
-        }
+        // Contact shadow catcher
+        const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.4 }));
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.position.y = -0.52;
+        shadowPlane.receiveShadow = true;
+        scene.add(shadowPlane);
 
-        /* ----- Steam (custom point shader for per-particle fade) ----- */
-        const STEAM_COUNT = isTouch ? 90 : 220;
+        /* ----- Steam ----- */
+        const STEAM_COUNT = isTouch ? 70 : 150;
         const steamGeo = new THREE.BufferGeometry();
         const sPos = new Float32Array(STEAM_COUNT * 3);
         const sLife = new Float32Array(STEAM_COUNT);
         const sSize = new Float32Array(STEAM_COUNT);
         const sSeed = new Float32Array(STEAM_COUNT);
-        for (let i = 0; i < STEAM_COUNT; i++) {
-          resetSteam(i, Math.random());
-        }
+        const STEAM_Y = 0.05 + 0.86; // cup mouth in model space
+        for (let i = 0; i < STEAM_COUNT; i++) resetSteam(i, Math.random());
         function resetSteam(i, life) {
           const a = Math.random() * Math.PI * 2;
-          const r = Math.random() * 0.28;
+          const r = Math.random() * 0.26;
           sPos[i * 3] = Math.cos(a) * r;
-          sPos[i * 3 + 1] = 0.42 + Math.random() * 0.1;
+          sPos[i * 3 + 1] = STEAM_Y + Math.random() * 0.08;
           sPos[i * 3 + 2] = Math.sin(a) * r;
           sLife[i] = life;
-          sSize[i] = 18 + Math.random() * 26;
+          sSize[i] = 26 + Math.random() * 38;
           sSeed[i] = Math.random() * 100;
         }
         steamGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
         steamGeo.setAttribute('aLife', new THREE.BufferAttribute(sLife, 1));
         steamGeo.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
-
-        const steamTex = makeSteamSprite();
         const steamMat = new THREE.ShaderMaterial({
-          uniforms: {
-            uTex: { value: steamTex },
-            uColor: { value: new THREE.Color(0xf0e2c8) },
-            uOpacity: { value: 0.9 }
-          },
+          uniforms: { uTex: { value: makeSteamSprite() }, uColor: { value: new THREE.Color(0xf3e9d2) }, uOpacity: { value: 0.85 } },
           transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-          vertexShader: `
-            attribute float aLife; attribute float aSize; varying float vLife;
-            void main(){ vLife = aLife; vec4 mv = modelViewMatrix * vec4(position, 1.0);
-            gl_PointSize = aSize * (260.0 / -mv.z); gl_Position = projectionMatrix * mv; }`,
-          fragmentShader: `
-            uniform sampler2D uTex; uniform vec3 uColor; uniform float uOpacity; varying float vLife;
-            void main(){ float a = texture2D(uTex, gl_PointCoord).a;
-            float fade = sin(clamp(vLife,0.0,1.0) * 3.14159);
-            gl_FragColor = vec4(uColor, a * fade * uOpacity); }`
+          vertexShader: 'attribute float aLife; attribute float aSize; varying float vLife;\n' +
+            'void main(){ vLife = aLife; vec4 mv = modelViewMatrix * vec4(position,1.0);\n' +
+            'gl_PointSize = aSize * (300.0 / -mv.z); gl_Position = projectionMatrix * mv; }',
+          fragmentShader: 'uniform sampler2D uTex; uniform vec3 uColor; uniform float uOpacity; varying float vLife;\n' +
+            'void main(){ float a = texture2D(uTex, gl_PointCoord).a;\n' +
+            'float fade = sin(clamp(vLife,0.0,1.0) * 3.14159); gl_FragColor = vec4(uColor, a*fade*uOpacity); }'
         });
         const steam = new THREE.Points(steamGeo, steamMat);
-        cupPivot.add(steam);
+        model.add(steam);
 
         function makeSteamSprite() {
-          const s = 64;
-          const cv = document.createElement('canvas'); cv.width = cv.height = s;
+          const s = 64; const cv = document.createElement('canvas'); cv.width = cv.height = s;
           const ctx = cv.getContext('2d');
           const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
           g.addColorStop(0, 'rgba(255,255,255,0.9)');
-          g.addColorStop(0.4, 'rgba(255,255,255,0.35)');
+          g.addColorStop(0.4, 'rgba(255,255,255,0.32)');
           g.addColorStop(1, 'rgba(255,255,255,0)');
           ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
-          const tex = new THREE.CanvasTexture(cv);
-          tex.colorSpace = THREE.SRGBColorSpace;
-          return tex;
+          const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
         }
+        function makeBgTexture() {
+          const cv = document.createElement('canvas'); cv.width = 16; cv.height = 256;
+          const ctx = cv.getContext('2d');
+          const g = ctx.createLinearGradient(0, 0, 0, 256);
+          g.addColorStop(0, '#3d4334'); g.addColorStop(0.55, '#2f3427'); g.addColorStop(1, '#20241a');
+          ctx.fillStyle = g; ctx.fillRect(0, 0, 16, 256);
+          const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+        }
+
+        /* ----- Post-processing (the "premium glow") on capable devices ----- */
+        let composer = null;
+        let bloomPass = null;
+        const heavy = !isTouch && (navigator.hardwareConcurrency || 4) >= 4;
+        if (heavy) {
+          const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+          const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
+          composer = new THREE.EffectComposer(renderer, rt);
+          composer.addPass(new RenderPass(scene, camera));
+          bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.5, 0.82);
+          composer.addPass(bloomPass);
+          const vignette = new ShaderPass(VignetteShader);
+          vignette.uniforms.offset.value = 1.05;
+          vignette.uniforms.darkness.value = 1.15;
+          composer.addPass(vignette);
+          composer.addPass(new OutputPass());
+        }
+        function renderScene() { if (composer) composer.render(); else renderer.render(scene, camera); }
 
         /* ----- Camera choreography (6 story stops) ----- */
         const stops = [
-          { pos: [0.0, -0.25, 2.5], tgt: [0.0, 0.15, 0.0], fov: 32 }, // 01 close, low
-          { pos: [2.3, 0.35, 2.1],  tgt: [0.0, 0.0, 0.0],  fov: 35 }, // 02 pull back / side
-          { pos: [-2.8, 0.7, 1.7],  tgt: [0.0, 0.0, 0.0],  fov: 41 }, // 03 wide orbit
-          { pos: [0.25, 3.1, 0.7],  tgt: [0.0, -0.1, 0.0], fov: 34 }, // 04 top-down
-          { pos: [1.9, 0.5, 2.6],   tgt: [0.0, 0.1, 0.0],  fov: 34 }, // 05 inviting 3/4
-          { pos: [0.0, 0.45, 4.3],  tgt: [0.0, 0.15, 0.0], fov: 30 }  // 06 majestic pull back
+          { pos: [0.0, -0.15, 2.6], tgt: [0.0, 0.18, 0.0], fov: 31 },
+          { pos: [2.4, 0.4, 2.2],   tgt: [0.0, 0.02, 0.0], fov: 35 },
+          { pos: [-2.9, 0.8, 1.7],  tgt: [0.0, 0.0, 0.0],  fov: 42 },
+          { pos: [0.3, 3.2, 0.8],   tgt: [0.0, -0.1, 0.0], fov: 34 },
+          { pos: [1.9, 0.45, 2.7],  tgt: [0.0, 0.12, 0.0], fov: 34 },
+          { pos: [0.0, 0.5, 4.4],   tgt: [0.0, 0.18, 0.0], fov: 30 }
         ];
         const desiredPos = new THREE.Vector3().fromArray(stops[0].pos);
         const desiredTgt = new THREE.Vector3().fromArray(stops[0].tgt);
         const curTgt = desiredTgt.clone();
         let desiredFov = stops[0].fov;
-
         function sampleStops(p) {
           const n = stops.length - 1;
           const f = Math.min(Math.max(p, 0), 1) * n;
-          const i = Math.floor(f);
-          const t = f - i;
-          const a = stops[i];
-          const b = stops[Math.min(i + 1, n)];
-          desiredPos.set(
-            a.pos[0] + (b.pos[0] - a.pos[0]) * t,
-            a.pos[1] + (b.pos[1] - a.pos[1]) * t,
-            a.pos[2] + (b.pos[2] - a.pos[2]) * t
-          );
-          desiredTgt.set(
-            a.tgt[0] + (b.tgt[0] - a.tgt[0]) * t,
-            a.tgt[1] + (b.tgt[1] - a.tgt[1]) * t,
-            a.tgt[2] + (b.tgt[2] - a.tgt[2]) * t
-          );
+          const i = Math.floor(f); const t = f - i;
+          const a = stops[i]; const b = stops[Math.min(i + 1, n)];
+          desiredPos.set(a.pos[0] + (b.pos[0] - a.pos[0]) * t, a.pos[1] + (b.pos[1] - a.pos[1]) * t, a.pos[2] + (b.pos[2] - a.pos[2]) * t);
+          desiredTgt.set(a.tgt[0] + (b.tgt[0] - a.tgt[0]) * t, a.tgt[1] + (b.tgt[1] - a.tgt[1]) * t, a.tgt[2] + (b.tgt[2] - a.tgt[2]) * t);
           desiredFov = a.fov + (b.fov - a.fov) * t;
         }
 
@@ -654,7 +672,7 @@
           });
         }
 
-        /* ----- Render loop (single ticker, shared with Lenis) ----- */
+        /* ----- Render loop ----- */
         let rotY = 0, idle = 0;
         let last = performance.now();
         let running = true;
@@ -663,10 +681,7 @@
           const max = document.documentElement.scrollHeight - window.innerHeight;
           return max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
         }
-
-        function damp(cur, target, lambda, dt) {
-          return cur + (target - cur) * (1 - Math.exp(-lambda * dt));
-        }
+        function damp(cur, target, lambda, dt) { return cur + (target - cur) * (1 - Math.exp(-lambda * dt)); }
 
         function frame() {
           const now = performance.now();
@@ -674,92 +689,72 @@
           const dt = Math.min((now - last) / 1000, 0.05);
           last = now;
           const p = scrollProgress();
-
           sampleStops(p);
 
-          // Camera position with weight + pointer parallax.
-          const px = desiredPos.x + pointer.x * 0.5;
-          const py = desiredPos.y - pointer.y * 0.35;
-          camera.position.x = damp(camera.position.x, px, 4, dt);
-          camera.position.y = damp(camera.position.y, py, 4, dt);
-          camera.position.z = damp(camera.position.z, desiredPos.z, 4, dt);
-          curTgt.x = damp(curTgt.x, desiredTgt.x, 5, dt);
-          curTgt.y = damp(curTgt.y, desiredTgt.y, 5, dt);
-          curTgt.z = damp(curTgt.z, desiredTgt.z, 5, dt);
+          // Tight, responsive camera follow (no "floaty" lag) + subtle parallax.
+          const px = desiredPos.x + pointer.x * 0.45;
+          const py = desiredPos.y - pointer.y * 0.3;
+          camera.position.x = damp(camera.position.x, px, 11, dt);
+          camera.position.y = damp(camera.position.y, py, 11, dt);
+          camera.position.z = damp(camera.position.z, desiredPos.z, 11, dt);
+          curTgt.x = damp(curTgt.x, desiredTgt.x, 12, dt);
+          curTgt.y = damp(curTgt.y, desiredTgt.y, 12, dt);
+          curTgt.z = damp(curTgt.z, desiredTgt.z, 12, dt);
           camera.lookAt(curTgt);
           if (Math.abs(camera.fov - desiredFov) > 0.01) {
-            camera.fov = damp(camera.fov, desiredFov, 4, dt);
+            camera.fov = damp(camera.fov, desiredFov, 10, dt);
             camera.updateProjectionMatrix();
           }
 
-          // Cup rotation: scroll-driven target + idle spin, with inertia.
-          idle += dt * 0.18;
-          const targetRot = p * Math.PI * 3 + idle;
-          rotY = damp(rotY, targetRot, 3.2, dt);
-          cupPivot.rotation.y = rotY;
-          cupPivot.position.y = Math.sin(now / 1000 * 0.8) * 0.03;
+          // Cup spin: scroll-driven + gentle idle, with a touch of inertia.
+          idle += dt * 0.16;
+          rotY = damp(rotY, p * Math.PI * 3 + idle, 6.5, dt);
+          pivot.rotation.y = rotY;
+          model.position.y = -0.52 + Math.sin(now / 1000 * 0.7) * 0.025;
 
-          // Steam update + scroll-linked density.
-          steamMat.uniforms.uOpacity.value = 0.9 - p * 0.7;
+          // Steam
+          steamMat.uniforms.uOpacity.value = 0.85 - p * 0.62;
           const pos = steamGeo.attributes.position.array;
           const t1 = now / 1000, t2 = t1 * 0.8;
           for (let i = 0; i < STEAM_COUNT; i++) {
-            sLife[i] += dt / 2.6;
+            sLife[i] += dt / 2.8;
             if (sLife[i] >= 1) { resetSteam(i, 0); continue; }
-            pos[i * 3 + 1] += dt * (0.18 + sSize[i] * 0.002);
-            pos[i * 3] += Math.sin(t1 + sSeed[i]) * dt * 0.03;
-            pos[i * 3 + 2] += Math.cos(t2 + sSeed[i]) * dt * 0.03;
+            pos[i * 3 + 1] += dt * (0.16 + sSize[i] * 0.0018);
+            pos[i * 3] += Math.sin(t1 + sSeed[i]) * dt * 0.028;
+            pos[i * 3 + 2] += Math.cos(t2 + sSeed[i]) * dt * 0.028;
           }
           steamGeo.attributes.position.needsUpdate = true;
           steamGeo.attributes.aLife.needsUpdate = true;
 
-          // Gold glow intensifies toward the legacy finale.
-          goldMat.emissiveIntensity = 0.15 + p * 1.1;
+          // Gold glow rises toward the finale (blooms).
+          goldMat.emissiveIntensity = 0.2 + p * 1.3;
 
-          renderer.render(scene, camera);
+          renderScene();
         }
 
-        if (gsap) {
-          gsap.ticker.add(frame);
-        } else {
-          const loop = () => { frame(); requestAnimationFrame(loop); };
-          requestAnimationFrame(loop);
-        }
+        if (gsap) gsap.ticker.add(frame);
+        else { const loop = () => { frame(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 
-        // Pause fully when tab hidden — stop the ticker, not just skip a frame.
         document.addEventListener('visibilitychange', () => {
           running = !document.hidden;
           last = performance.now();
-          if (gsap) {
-            gsap.ticker.remove(frame);
-            if (!document.hidden) gsap.ticker.add(frame);
-          }
+          if (gsap) { gsap.ticker.remove(frame); if (!document.hidden) gsap.ticker.add(frame); }
         });
+        canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); running = false; if (gsap) gsap.ticker.remove(frame); });
+        canvas.addEventListener('webglcontextrestored', () => { running = true; last = performance.now(); if (gsap) gsap.ticker.add(frame); });
 
-        // Handle WebGL context loss gracefully (mobile memory pressure).
-        canvas.addEventListener('webglcontextlost', (e) => {
-          e.preventDefault(); running = false;
-          if (gsap) gsap.ticker.remove(frame);
-        });
-        canvas.addEventListener('webglcontextrestored', () => {
-          running = true; last = performance.now();
-          if (gsap) gsap.ticker.add(frame);
-        });
-
-        // Resize (rAF-coalesced; pixel ratio set before size so the buffer uses it)
         let resizePending = false;
         function applyResize() {
           resizePending = false;
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
           renderer.setSize(window.innerWidth, window.innerHeight);
+          if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+          if (bloomPass) bloomPass.setSize(window.innerWidth, window.innerHeight);
         }
-        window.addEventListener('resize', () => {
-          if (!resizePending) { resizePending = true; requestAnimationFrame(applyResize); }
-        });
+        window.addEventListener('resize', () => { if (!resizePending) { resizePending = true; requestAnimationFrame(applyResize); } });
 
-        // Reveal the canvas once the first frame is ready.
         requestAnimationFrame(() => {
           frame();
           canvas.classList.add('ready');
